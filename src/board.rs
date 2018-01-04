@@ -252,29 +252,33 @@ impl Board {
         }
     }
 
-    /// Prints the game state to the terminal.
+    /// Returns a formatted game state.
     ///
     /// Will blank out pieces that the player provided doesn't own, as it is
     /// considered personal knowledge.
-    pub fn display_to(&self, player: Colour) {
-        println!("┌──────────────────────────────┐");
+    pub fn display_to(&self, player: Colour) -> String {
+        use ::std::fmt::Write;
+
+        let mut s = String::new();
+        write!(s, "┌──────────────────────────────┐\n");
         for y in 0..10 {
-            print!("│");
+            write!(s, "│");
             for x in 0..10 {
                 let tile = self.tile_at(Coord {x: x, y: y});
                 match tile {
-                    Tile::Terrain => print!(" ~ " ),
-                    Tile::Empty => print!("   " ),
+                    Tile::Terrain => {write!(s, " ~ " );},
+                    Tile::Empty => {write!(s, "   " );},
                     Tile::Piece(p, c) => if player == c {
-                        print!(" {} ", p)
+                        write!(s, " {} ", p);
                     } else {
-                        print!(" ▇ ")
+                        write!(s, " ▇ ");
                     }
                 }
             }
-            println!("│");
+            write!(s, "│\n");
         }
-        println!("└──────────────────────────────┘");
+        write!(s, "└──────────────────────────────┘");
+        s
     }
 
     /// For the lazy.
