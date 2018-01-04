@@ -162,11 +162,11 @@ impl Board {
     }
 
     pub fn tile_at(&self, c: Coord) -> Tile {
-        self.board[c.x][c.y]
+        self.board[c.y][c.x]
     }
 
     pub fn set_tile(&mut self, c: Coord, t: Tile) {
-        self.board[c.x][c.y] = t;
+        self.board[c.y][c.x] = t;
     }
 
     /// Mutates the game state with the provided move.
@@ -257,7 +257,66 @@ impl Board {
     /// Will blank out pieces that the player provided doesn't own, as it is
     /// considered personal knowledge.
     pub fn display_to(&self, player: Colour) {
-        unimplemented!()
+        println!("┌──────────────────────────────┐");
+        for y in 0..10 {
+            print!("│");
+            for x in 0..10 {
+                let tile = self.tile_at(Coord {x: x, y: y});
+                match tile {
+                    Tile::Terrain => print!(" ~ " ),
+                    Tile::Empty => print!("   " ),
+                    Tile::Piece(p, c) => if player == c {
+                        print!(" {} ", p)
+                    } else {
+                        print!(" ▇ ")
+                    }
+                }
+            }
+            println!("│");
+        }
+        println!("└──────────────────────────────┘");
+    }
+
+    /// For the lazy.
+    ///
+    /// Randomises the placement of the starting pieces on the given side (where
+    /// blue is the top half, and red is the bottom half)
+    pub fn randomise(&mut self, player: Colour) {
+        use rand::Rng;
+        use self::Piece::*;
+
+        let mut rng = ::rand::thread_rng();
+        // FIXME Make this less obvious?
+        let mut to_place = vec![Bomb, Bomb, Bomb, Bomb, Bomb, Bomb,
+                                Marshall, General, Colonel, Colonel,
+                                Major, Major, Major,
+                                Captain, Captain, Captain, Captain,
+                                Lieutenant, Lieutenant, Lieutenant, Lieutenant,
+                                Sergeant, Sergeant, Sergeant, Sergeant,
+                                Miner, Miner, Miner, Miner, Miner,
+                                Scout, Scout, Scout, Scout,
+                                Scout, Scout, Scout, Scout,
+                                Spy, Flag];
+
+        {
+            let mut sl = to_place.as_mut_slice();
+            rng.shuffle(&mut sl);
+        }
+
+        let offset = match player {
+            Colour::Red => 6,
+            Colour::Blue => 0,
+        };
+
+        for x in 0..10 {
+            for y in 0..4 {
+                let coord = Coord {x: x, y: y + offset};
+                let piece = to_place.pop()
+                    .expect("Unexpected end of placement list");
+                let tile = Tile::Piece(piece, player);
+                self.set_tile(coord, tile);
+            }
+        }
     }
 }
 
