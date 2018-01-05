@@ -38,16 +38,106 @@ pub fn init<R: Read, W: Write>(stdin: R, mut stdout: W) {
     };
 
     game.setup(board::Colour::Red);
+    game.board.randomise(board::Colour::Blue);
+    game.board.randomise(board::Colour::Red);
+    game.refresh(board::Colour::Red);
 
-    // game.run();
+    game.run();
 }
 
 impl<R: Iterator<Item=Result<Key, ::std::io::Error>>, W: Write> Game<R, W> {
 
     /// The main game loop.
     pub fn run(&mut self) {
-        loop {
+        use board::Piece::*;
+        let mut player = board::Colour::Red;
 
+        macro_rules! mv {
+            ($x:expr, $y:expr) => (match self.cursor.offset($x, $y) {
+                Some(c) => c,
+                None => self.cursor
+            });
+        }
+
+        while let Ok(k) = self.stdin.next().unwrap() {
+            use termion::event::Key::*;
+
+            match k {
+                Char('w') | Up    => self.cursor = mv!(0, -1),
+                Char('a') | Left  => self.cursor = mv!(-1, 0),
+                Char('s') | Down  => self.cursor = mv!(0, 1),
+                Char('d') | Right => self.cursor = mv!(1, 0),
+                Char('q') => return,
+                Char(' ') => {
+                    match self.sel {
+                        Some(selected) => {
+                            if self.highlighted.contains(&self.cursor) {
+                                use board::Tile;
+
+                                // Conduct the move.
+                                match self.board.tile_at(self.cursor) {
+                                    // Show the piece attempting to be taken,
+                                    // then conduct the results.
+                                    Tile::Piece(p_enemy, _) => {
+                                        use board::BattleResult::*;
+                                        use ::std::thread;
+
+                                        match self.board.tile_at(selected) {
+                                            Tile::Piece(p_owned, _) =>
+                                                match p_owned.attack(p_enemy) {
+                                                    // FIXME Probably some way
+                                                    // of doing this without
+                                                    // reallocation, even if
+                                                    // it's just making `reveal`
+                                                    // take a mutable.
+                                                    Victory => {
+                                                        let cur = self.cursor;
+                                                        self.reveal(cur, player);
+                                                        self.board.apply_move(Move::new(selected, self.cursor));
+                                                    },
+                                                    Loss => {
+                                                        let cur = self.cursor;
+                                                        self.reveal(cur, player);
+                                                        self.board.set_tile(selected, Tile::Empty);
+                                                    }
+                                                    Draw => {
+                                                        let cur = self.cursor;
+                                                        self.reveal(cur, player);
+                                                        self.board.set_tile(selected, Tile::Empty);
+                                                        self.board.set_tile(self.cursor, Tile::Empty);
+                                                    }
+                                                }
+                                            _ => (),
+                                        }
+                                    }
+
+                                    // Else just move.
+                                    _ => self.board
+                                        .apply_move(Move {from: selected,
+                                                          to: self.cursor}),
+                                }
+                            }
+
+                            self.sel = None;
+                            self.highlighted.clear();
+                            player = player.other();
+                        }
+                        None => {
+                            // Highlight valid spaces
+                            let moves = self.board.find_moves(self.cursor);
+                            let coords = moves.iter()
+                                .map(|m| m.to).collect::<Vec<_>>();
+                            if coords.len() > 0 {
+                                self.highlighted = coords;
+                                self.sel = Some(self.cursor);
+                            }
+                        }
+                    }
+                }
+                _ => {},
+            }
+
+            self.refresh(player);
         }
     }
 
@@ -75,10 +165,6 @@ impl<R: Iterator<Item=Result<Key, ::std::io::Error>>, W: Write> Game<R, W> {
             });
         }
 
-        self.board.randomise(player);
-        self.board.randomise(board::Colour::Blue);
-        self.refresh(player);
-
         while let Ok(k) = self.stdin.next().unwrap() {
             use termion::event::Key::*;
 
@@ -88,71 +174,14 @@ impl<R: Iterator<Item=Result<Key, ::std::io::Error>>, W: Write> Game<R, W> {
                 Char('s') | Down  => self.cursor = mv!(0, 1),
                 Char('d') | Right => self.cursor = mv!(1, 0),
                 Char('q') => return,
-                Char(' ') => {
-                    match self.sel {
-                        Some(selected) => {
-                            if self.highlighted.contains(&self.cursor) {
-                                use board::Tile;
-
-                                // Conduct the move.
-                                match self.board.tile_at(self.cursor) {
-                                    // Show the piece attempting to be taken,
-                                    // then conduct the results.
-                                    Tile::Piece(p_enemy, _) => {
-                                        use board::BattleResult::*;
-                                        use ::std::thread;
-
-                                        match self.board.tile_at(selected) {
-                                            Tile::Piece(p_owned, _) =>
-                                                match p_owned.attack(p_enemy) {
-                                                    Victory => {
-                                                        let cur = self.cursor;
-                                                        self.reveal(cur, player);
-                                                        self.board.apply_move(Move::new(selected, self.cursor));
-                                                    },
-                                                    Loss => {
-                                                        let cur = self.cursor;
-                                                        self.reveal(cur, player);
-                                                        self.board.set_tile(selected, Tile::Empty);
-                                                    }
-                                                    Draw => {
-                                                        let cur = self.cursor;
-                                                        self.reveal(cur, player);
-                                                        self.board.set_tile(selected, Tile::Empty);
-                                                        self.board.set_tile(self.cursor, Tile::Empty);
-                                                    }
-                                                }
-                                            _ => (),
-                                        }
-                                    }
-
-                                    // Else just move.
-                                    _ => self.board
-                                        .apply_move(Move {from: selected,
-                                                          to: self.cursor}),
-
-                                }
-                            }
-
-                            self.sel = None;
-                            self.highlighted.clear();
-                        }
-                        None => {
-                            // Highlight valid spaces
-                            let moves = self.board.find_moves(self.cursor);
-                            let coords = moves.iter()
-                                .map(|m| m.to).collect::<Vec<_>>();
-                            if coords.len() > 0 {
-                                self.highlighted = coords;
-                                self.sel = Some(self.cursor);
-                            }
-                        }
-                    }
-                }
+                Char(' ') => {}
                 _ => {},
             }
 
+            to_place.clear();
+
             self.refresh(player);
+            if to_place.is_empty() { return }
         }
     }
 
