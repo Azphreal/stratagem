@@ -123,6 +123,10 @@ impl<R: Iterator<Item=Result<Key, ::std::io::Error>>, W: Write> Game<R, W> {
                             player = player.other();
                         }
                         None => {
+                            match self.board.tile_at(self.cursor) {
+                                board::Tile::Piece(_, col) => if player != col { continue },
+                                _ => (),
+                            }
                             // Highlight valid spaces
                             let moves = self.board.find_moves(self.cursor);
                             let coords = moves.iter()
