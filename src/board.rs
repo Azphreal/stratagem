@@ -58,10 +58,21 @@ impl Piece {
     pub fn attack(&self, other: Piece) -> BattleResult {
         use ::std::cmp::Ordering::*;
         use self::BattleResult::*;
-        match self.cmp(&other) {
-            Less => Loss,
-            Equal => Draw,
-            Greater => Victory
+        if (self.value() == 3 && other.value() == ::std::u8::MAX)
+            || (self.value() == 1 && other.value() == 10)
+        {
+            // Exceptions for miners able to capture bombs, and spies able
+            // to capture marshalls.
+            Victory
+        } else if self.value() == 10 && other.value() == 1 {
+            // Lose if a marshall swings into a spy.
+            Loss
+        } else {
+            match self.cmp(&other) {
+                Less => Loss,
+                Equal => Draw,
+                Greater => Victory
+            }
         }
     }
 }
