@@ -342,18 +342,10 @@ impl Board {
 
         let mut s = String::new();
         write!(s, "┌──────────────────────────────┐\n")?;
-        for y in 0..10 {
+        for line in self.board.into_iter() {
             write!(s, "│")?;
-            for x in 0..10 {
-                let tile = self.tile_at(Coord {x: x, y: y});
-                match tile {
-                    Tile::Piece(_, c) => if player == c {
-                        write!(s, " {} ", tile)?
-                    } else {
-                        write!(s, " ▇ ")?
-                    }
-                    _ => write!(s, " {} ", tile)?,
-                }
+            for tile in line.iter() {
+                write!(s, " {} ", tile.show(player));
             }
             write!(s, "│\n")?;
         }

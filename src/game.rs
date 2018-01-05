@@ -202,28 +202,12 @@ impl<R: Iterator<Item=Result<Key, ::std::io::Error>>, W: Write> Game<R, W> {
     }
 
     fn draw_board(&mut self, player: board::Colour) -> ::std::io::Result<()> {
-        // let board = self.board.display_to(player).unwrap();
-        // for (n, line) in board.split('\n').enumerate() {
-        //     write!(self.stdout, "{}{}{}",
-        //            cursor::Goto(X_OFFSET, Y_OFFSET + n as u16),
-        //            cursor::Hide,
-        //            line)?
-        // }
-        // Ok(())
-
-        let mut down = 1;
-
-        write!(self.stdout, "{}{}", cursor::Goto(X_OFFSET, Y_OFFSET), cursor::Hide);
-        write!(self.stdout, "┌──────────────────────────────┐")?;
-        for (n, line) in self.board.into_iter().enumerate() {
-            write!(self.stdout, "{}│", cursor::Goto(X_OFFSET, Y_OFFSET + down))?;
-            for tile in line.iter() {
-                write!(self.stdout, " {} ", tile.show(player));
-            }
-            write!(self.stdout, "│")?;
-            down += 1;
+        for (n, line) in self.board.display_to(player).unwrap().split('\n').enumerate() {
+            write!(self.stdout, "{}{}{}",
+                   cursor::Goto(X_OFFSET, Y_OFFSET + n as u16),
+                   cursor::Hide,
+                   line)?
         }
-        write!(self.stdout, "{}└──────────────────────────────┘", cursor::Goto(X_OFFSET, Y_OFFSET + down))?;
         Ok(())
     }
 
