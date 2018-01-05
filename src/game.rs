@@ -5,12 +5,14 @@ use termion::input::TermRead;
 
 use board::{self, Board, Coord};
 
-const X_OFFSET: u16 = 1;
-const Y_OFFSET: u16 = 1;
+const X_OFFSET: u16 = 4;
+const Y_OFFSET: u16 = 4;
 
 struct Game<R, W: Write> {
     board: Board,
-    sel: Coord,
+    cursor: Coord,
+    sel: Option<Coord>,
+    highlighted: Vec<Coord>,
     stdin: R,
     stdout: W,
 }
@@ -27,7 +29,9 @@ pub fn init<R: Read, W: Write>(stdin: R, mut stdout: W) {
 
     let mut game = Game {
         board: Board::new(),
-        sel: Coord {x: 0, y: 9},
+        cursor: Coord {x: 0, y: 9},
+        sel: None,
+        highlighted: vec![],
         stdin: stdin.keys(),
         stdout: stdout,
     };
@@ -64,9 +68,9 @@ impl<R: Iterator<Item=Result<Key, ::std::io::Error>>, W: Write> Game<R, W> {
                                 Spy];
 
         macro_rules! mv {
-            ($x:expr, $y:expr) => (match self.sel.offset($x, $y) {
+            ($x:expr, $y:expr) => (match self.cursor.offset($x, $y) {
                 Some(c) => c,
-                None => self.sel
+                None => self.cursor
             });
         }
 
@@ -74,16 +78,31 @@ impl<R: Iterator<Item=Result<Key, ::std::io::Error>>, W: Write> Game<R, W> {
         self.refresh(player);
 
         while let Ok(k) = self.stdin.next().unwrap() {
-            // let k = self.stdin.next().unwrap().unwrap();
             use termion::event::Key::*;
 
             match k {
-                Char('w') | Up    => self.sel = mv!(0, -1),
-                Char('a') | Left  => self.sel = mv!(-1, 0),
-                Char('s') | Down  => self.sel = mv!(0, 1),
-                Char('d') | Right => self.sel = mv!(1, 0),
+                Char('w') | Up    => self.cursor = mv!(0, -1),
+                Char('a') | Left  => self.cursor = mv!(-1, 0),
+                Char('s') | Down  => self.cursor = mv!(0, 1),
+                Char('d') | Right => self.cursor = mv!(1, 0),
                 Char('q') => return,
                 Char(' ') => {
+                    match self.sel {
+                        Some(c) => {
+                            self.highlighted.clear();
+                            self.sel = None;
+                        }
+                        None => {
+                            // Highlight valid spaces
+                            let moves = self.board.find_moves(self.cursor);
+                            let coords = moves.iter()
+                                .map(|m| m.to).collect::<Vec<_>>();
+                            if coords.len() > 0 {
+                                self.highlighted = coords;
+                                self.sel = Some(self.cursor);
+                            }
+                        }
+                    }
                 }
                 _ => {},
             }
@@ -94,9 +113,14 @@ impl<R: Iterator<Item=Result<Key, ::std::io::Error>>, W: Write> Game<R, W> {
 
     fn refresh(&mut self, player: board::Colour) -> ::std::io::Result<()> {
         self.draw_board(player)?;
+        self.highlight()?;
         self.draw_cursor()?;
         self.stdout.flush()?;
         Ok(())
+    }
+
+    fn term_coords(&self, c: Coord) -> (u16, u16) {
+        (c.x * 3 + 2 + X_OFFSET, c.y + 1 + Y_OFFSET)
     }
 
     fn draw_board(&mut self, player: board::Colour) -> ::std::io::Result<()> {
@@ -111,17 +135,33 @@ impl<R: Iterator<Item=Result<Key, ::std::io::Error>>, W: Write> Game<R, W> {
     }
 
     fn draw_cursor(&mut self) -> ::std::io::Result<()> {
-        write!(self.stdout, "{}{}{}{}",
-               cursor::Goto(self.sel.x * 3 + 2, self.sel.y + 2),
-               "[", self.board.tile_at(self.sel), "]")?;
-        write!(self.stdout, "{}",
-               cursor::Goto(self.sel.x * 3 + 3, self.sel.y + 2))?;
+        let (x, y) = self.term_coords(self.cursor);
+        let cursor = format!("[{}]", self.board.tile_at(self.cursor));
+
+        write!(self.stdout, "{}", cursor::Goto(x - 1, y))?;
+        if self.highlighted.contains(&self.cursor) {
+            use termion::color;
+            write!(self.stdout, "{}{}{}",
+                   color::Bg(color::Red),
+                   cursor,
+                   color::Bg(color::Reset))?;
+        } else {
+            write!(self.stdout, "{}", cursor)?;
+        };
+
         Ok(())
     }
 
-    fn highlight(&mut self, tiles: Vec<Coord>) {
-        for t in tiles {
-            unimplemented!()
+    fn highlight(&mut self) -> ::std::io::Result<()> {
+        use termion::color;
+
+        for t in self.highlighted.iter() {
+            let (x, y) = self.term_coords(t.clone());
+            write!(self.stdout, "{}{}   {}",
+                   cursor::Goto(x - 1, y),
+                   color::Bg(color::Red), color::Bg(color::Reset))?;
         }
+
+        Ok(())
     }
 }
