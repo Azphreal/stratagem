@@ -2,6 +2,8 @@ const DEFAULT_NO_MANS_LAND: [Tile; 10] =
     [Tile::Empty, Tile::Empty, Tile::Terrain, Tile::Terrain, Tile::Empty,
      Tile::Empty, Tile::Terrain, Tile::Terrain, Tile::Empty, Tile::Empty];
 
+const TERRAIN_DISP_CHAR: &'static str = "~";
+
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub enum Piece {
     Bomb,
@@ -91,10 +93,21 @@ pub enum Tile {
     Piece(Piece, Colour)
 }
 
+impl ::std::fmt::Display for Tile {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
+        use self::Tile::*;
+        match *self {
+            Terrain     => write!(f, "{}", TERRAIN_DISP_CHAR),
+            Empty       => write!(f, " "),
+            Piece(p, _) => write!(f, "{}", p),
+        }
+    }
+}
+
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub struct Coord {
-    x: usize,
-    y: usize,
+    pub x: u16,
+    pub y: u16,
 }
 
 impl Coord {
@@ -108,19 +121,24 @@ impl Coord {
                 None
             } else {
                 Some(Coord{
-                    x: x.to_digit(20).unwrap() as usize - 10,
-                    y: y.to_digit(10).unwrap() as usize,
+                    x: x.to_digit(20).unwrap() as u16 - 10,
+                    y: y.to_digit(10).unwrap() as u16,
                 })
             }
         }
     }
 
-    fn offset(&self, x: isize, y: isize) -> Option<Self> {
+    // pub fn from(x: u16, y: u16) -> Option<Self> {
+    //     if x < 0 || x > 10 || y < 0 || y > 10 { None }
+    //     else { Some(Coord {x: x, y: y}) }
+    // }
+
+    pub fn offset(&self, x: isize, y: isize) -> Option<Self> {
         let (mx, my) = (self.x as isize + x, self.y as isize + y);
         if mx < 0 || my < 0 || mx > 9 || my > 9 {
             None
         } else {
-            Some(Coord {x: mx as usize, y: my as usize})
+            Some(Coord {x: mx as u16, y: my as u16})
         }
     }
 }
@@ -162,11 +180,21 @@ impl Board {
     }
 
     pub fn tile_at(&self, c: Coord) -> Tile {
-        self.board[c.y][c.x]
+        self.board[c.y as usize][c.x as usize]
     }
 
+    // fn adjacent(&self, c: Coord) -> Vec<Coord> {
+    //     let mut adj = vec![];
+    //     for &(x, y) in [(1, 0), (-1, 0), (0, 1), (0, -1)].iter() {
+    //         if let Some(c_next) = c.offset(x, y) {
+    //             adj.push(c_next)
+    //         }
+    //     }
+    //     adj
+    // }
+
     pub fn set_tile(&mut self, c: Coord, t: Tile) {
-        self.board[c.y][c.x] = t;
+        self.board[c.y as usize][c.x as usize] = t;
     }
 
     /// Mutates the game state with the provided move.
@@ -256,29 +284,28 @@ impl Board {
     ///
     /// Will blank out pieces that the player provided doesn't own, as it is
     /// considered personal knowledge.
-    pub fn display_to(&self, player: Colour) -> String {
+    pub fn display_to(&self, player: Colour) -> Result<String, ::std::fmt::Error> {
         use ::std::fmt::Write;
 
         let mut s = String::new();
-        write!(s, "┌──────────────────────────────┐\n");
+        write!(s, "┌──────────────────────────────┐\n")?;
         for y in 0..10 {
-            write!(s, "│");
+            write!(s, "│")?;
             for x in 0..10 {
                 let tile = self.tile_at(Coord {x: x, y: y});
                 match tile {
-                    Tile::Terrain => {write!(s, " ~ " );},
-                    Tile::Empty => {write!(s, "   " );},
-                    Tile::Piece(p, c) => if player == c {
-                        write!(s, " {} ", p);
+                    Tile::Piece(_, c) => if player == c {
+                        write!(s, " {} ", tile)?
                     } else {
-                        write!(s, " ▇ ");
+                        write!(s, " ▇ ")?
                     }
+                    _ => write!(s, " {} ", tile)?,
                 }
             }
-            write!(s, "│\n");
+            write!(s, "│\n")?;
         }
-        write!(s, "└──────────────────────────────┘");
-        s
+        write!(s, "└──────────────────────────────┘")?;
+        Ok(s)
     }
 
     /// For the lazy.
