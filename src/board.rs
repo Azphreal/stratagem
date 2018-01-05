@@ -3,6 +3,7 @@ const DEFAULT_NO_MANS_LAND: [Tile; 10] =
      Tile::Empty, Tile::Terrain, Tile::Terrain, Tile::Empty, Tile::Empty];
 
 const TERRAIN_DISP_CHAR: &'static str = "~";
+const HIDDEN_DISP_CHAR: &'static str = "▇";
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub enum Piece {
@@ -134,6 +135,20 @@ pub enum Tile {
     Terrain,
     Empty,
     Piece(Piece, Colour)
+}
+
+impl Tile {
+    pub fn show(&self, viewer: Colour) -> String {
+        match *self {
+            Tile::Terrain     => format!("{}", TERRAIN_DISP_CHAR),
+            Tile::Empty       => format!(" "),
+            Tile::Piece(p, c) => if viewer == c {
+                format!("{}", p)
+            } else {
+                format!("{}", HIDDEN_DISP_CHAR)
+            }
+        }
+    }
 }
 
 impl ::std::fmt::Display for Tile {
@@ -386,6 +401,15 @@ impl Board {
                 self.set_tile(coord, tile);
             }
         }
+    }
+}
+
+impl<'a> ::std::iter::IntoIterator for &'a Board {
+    type Item = &'a [Tile; 10];
+    type IntoIter = ::std::slice::Iter<'a, [Tile; 10]>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.board.iter()
     }
 }
 
