@@ -55,11 +55,26 @@ impl Piece {
             Flag       => 0,
         }
     }
+    pub fn attack(&self, other: Piece) -> BattleResult {
+        use ::std::cmp::Ordering::*;
+        use self::BattleResult::*;
+        match self.cmp(&other) {
+            Less => Loss,
+            Equal => Draw,
+            Greater => Victory
+        }
+    }
 }
 
 impl ::std::cmp::PartialOrd for Piece {
     fn partial_cmp(&self, other: &Piece) -> Option<::std::cmp::Ordering> {
         Some(self.value().cmp(&other.value()))
+    }
+}
+
+impl ::std::cmp::Ord for Piece {
+    fn cmp(&self, other: &Piece) -> ::std::cmp::Ordering {
+        self.value().cmp(&other.value())
     }
 }
 
@@ -84,7 +99,24 @@ impl ::std::fmt::Display for Piece {
 }
 
 #[derive(Copy, Clone, PartialEq, Debug)]
+pub enum BattleResult {
+    Victory,
+    Loss,
+    Draw
+}
+
+#[derive(Copy, Clone, PartialEq, Debug)]
 pub enum Colour{Red, Blue}
+
+impl Colour {
+    pub fn other(&self) -> Self {
+        use self::Colour::*;
+        match *self {
+            Red => Blue,
+            Blue => Red,
+        }
+    }
+}
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum Tile {
@@ -128,11 +160,6 @@ impl Coord {
         }
     }
 
-    // pub fn from(x: u16, y: u16) -> Option<Self> {
-    //     if x < 0 || x > 10 || y < 0 || y > 10 { None }
-    //     else { Some(Coord {x: x, y: y}) }
-    // }
-
     pub fn offset(&self, x: isize, y: isize) -> Option<Self> {
         let (mx, my) = (self.x as isize + x, self.y as isize + y);
         if mx < 0 || my < 0 || mx > 9 || my > 9 {
@@ -145,8 +172,8 @@ impl Coord {
 
 #[derive(Debug, PartialEq)]
 pub struct Move {
-    from: Coord,
-    to: Coord
+    pub from: Coord,
+    pub to: Coord
 }
 
 impl Move {
