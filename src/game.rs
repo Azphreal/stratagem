@@ -1,9 +1,11 @@
 use std::io::{self, Read, Write};
 use termion::{clear, cursor};
+use termion::color as termcol;
 use termion::event::Key;
 use termion::input::TermRead;
 
 use board::{self, Board, Coord, Move, Tile};
+use error;
 
 const X_OFFSET: u16 = 4;
 const Y_OFFSET: u16 = 4;
@@ -30,7 +32,7 @@ impl<R, W: Write> Drop for Game<R, W> {
     }
 }
 
-pub fn init<R: Read, W: Write>(stdin: R, mut stdout: W) -> io::Result<()> {
+pub fn init<R: Read, W: Write>(stdin: R, mut stdout: W) -> error::Result<()> {
     write!(stdout, "{}", clear::All)?;
 
     let mut game = Game {
@@ -53,7 +55,7 @@ pub fn init<R: Read, W: Write>(stdin: R, mut stdout: W) -> io::Result<()> {
 impl<R: Iterator<Item = Result<Key, io::Error>>, W: Write> Game<R, W> {
 
     /// The main game loop.
-    pub fn run(&mut self) -> io::Result<()> {
+    pub fn run(&mut self) -> error::Result<()> {
         let mut player = board::Colour::Red;
 
         macro_rules! mv {
@@ -157,7 +159,7 @@ impl<R: Iterator<Item = Result<Key, io::Error>>, W: Write> Game<R, W> {
     ///
     /// By default, places pieces in order valued highest to lowest, with
     /// stationary pieces first (i.e., flag, bombs, marshall, general, ...).
-    fn setup(&mut self, player: board::Colour) -> io::Result<()> {
+    fn setup(&mut self, player: board::Colour) -> error::Result<()> {
         use board::Piece::*;
         let mut to_place = vec![
             Flag, Bomb, Bomb, Bomb, Bomb, Bomb, Bomb, Marshall, General,
@@ -201,7 +203,7 @@ impl<R: Iterator<Item = Result<Key, io::Error>>, W: Write> Game<R, W> {
                 Char('a') | Left  => self.cursor = mv!(-1, 0),
                 Char('s') | Down  => self.cursor = mv!(0, 1),
                 Char('d') | Right => self.cursor = mv!(1, 0),
-                Char('q') => break,
+                Char('q') => return Err(error::Error::EarlyExit),
                 Char(' ') => {
                     if self.highlighted.contains(&self.cursor) {
                         let piece =
@@ -223,10 +225,11 @@ impl<R: Iterator<Item = Result<Key, io::Error>>, W: Write> Game<R, W> {
         Ok(())
     }
 
-    fn refresh(&mut self, player: board::Colour) -> io::Result<()> {
+    fn refresh(&mut self, player: board::Colour) -> error::Result<()> {
         self.draw_board(player)?;
         self.highlight()?;
         self.draw_cursor(player)?;
+        self.draw_status()?;
         self.stdout.flush()?;
         Ok(())
     }
@@ -235,7 +238,11 @@ impl<R: Iterator<Item = Result<Key, io::Error>>, W: Write> Game<R, W> {
         (c.x * 3 + 2 + X_OFFSET, c.y + 1 + Y_OFFSET)
     }
 
-    fn draw_board(&mut self, player: board::Colour) -> io::Result<()> {
+    fn draw_status(&mut self) -> error::Result<()> {
+        Ok(())
+    }
+
+    fn draw_board(&mut self, player: board::Colour) -> error::Result<()> {
         for (n, line) in self.board
             .display_to(player)
             .unwrap()
@@ -252,19 +259,18 @@ impl<R: Iterator<Item = Result<Key, io::Error>>, W: Write> Game<R, W> {
         Ok(())
     }
 
-    fn draw_cursor(&mut self, player: board::Colour) -> io::Result<()> {
+    fn draw_cursor(&mut self, player: board::Colour) -> error::Result<()> {
         let (x, y) = self.term_coords(self.cursor);
         let cursor =
             format!("[{}]", self.board.tile_at(self.cursor).show(player));
 
         write!(self.stdout, "{}", cursor::Goto(x - 1, y))?;
         if self.highlighted.contains(&self.cursor) {
-            use termion::color;
             write!(self.stdout,
                    "{}{}{}",
-                   color::Bg(color::Red),
+                   termcol::Bg(termcol::Red),
                    cursor,
-                   color::Bg(color::Reset)
+                   termcol::Bg(termcol::Reset)
             )?;
         } else {
             write!(self.stdout, "{}", cursor)?;
@@ -273,22 +279,20 @@ impl<R: Iterator<Item = Result<Key, io::Error>>, W: Write> Game<R, W> {
         Ok(())
     }
 
-    fn highlight(&mut self) -> io::Result<()> {
-        use termion::color;
-
+    fn highlight(&mut self) -> error::Result<()> {
         for t in &self.highlighted {
             let (x, y) = self.term_coords(t.clone());
             write!(self.stdout, "{}{}   {}",
                    cursor::Goto(x - 1, y),
-                   color::Bg(color::Red),
-                   color::Bg(color::Reset)
+                   termcol::Bg(termcol::Red),
+                   termcol::Bg(termcol::Reset)
             )?;
         }
 
         Ok(())
     }
 
-    pub fn reveal(&mut self, c: Coord, player: board::Colour) -> io::Result<()> {
+    pub fn reveal(&mut self, c: Coord, player: board::Colour) -> error::Result<()> {
         if let Tile::Piece(p, col) = self.board.tile_at(c) {
             self.board.set_tile(c, Tile::Piece(p, col.other()));
             self.refresh(player)?;
