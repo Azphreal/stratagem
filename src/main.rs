@@ -12,10 +12,7 @@ use std::io::{self, Write};
 use termion::raw::IntoRawMode;
 
 fn main() {
-    let termsize = match termion::terminal_size() {
-        Ok(s) => s,
-        Err(_) => (40, 40),
-    };
+    let termsize = termion::terminal_size().unwrap_or((40, 20));
     if termsize.0 < 32 || termsize.1 < 12 {
         println!("Stratagem requires a minimum terminal size of 32 x 12.");
         println!("Enlarge your terminal and try again.");
