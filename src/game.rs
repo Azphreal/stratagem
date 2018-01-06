@@ -170,7 +170,6 @@ impl<R: Iterator<Item = Result<Key, io::Error>>, W: Write> Game<R, W> {
             Sergeant, Sergeant, Sergeant, Miner, Miner, Miner, Miner, Miner,
             Scout, Scout, Scout, Scout, Scout, Scout, Scout, Scout, Spy
         ];
-        to_place.reverse();
 
         macro_rules! mv {
             ($x:expr, $y:expr) => (match self.cursor.offset($x, $y) {
@@ -188,13 +187,12 @@ impl<R: Iterator<Item = Result<Key, io::Error>>, W: Write> Game<R, W> {
             for y in 0 .. 4 {
                 let coord = Coord {x: x, y: y + offset};
                 self.highlighted.push(coord);
-                // let piece =
-                //     to_place.pop().expect("Unexpected end of placement list");
-                // let tile = Tile::Piece(piece, player);
-                // self.set_tile(coord, tile);
             }
         }
 
+        self.draw_status(
+            format!("Next to place: {}", to_place[0])
+        )?;
         self.refresh(player)?;
 
         while let Ok(k) = self.stdin.next().unwrap() {
@@ -206,13 +204,18 @@ impl<R: Iterator<Item = Result<Key, io::Error>>, W: Write> Game<R, W> {
                 Char('s') | Down  => self.cursor = mv!(0, 1),
                 Char('d') | Right => self.cursor = mv!(1, 0),
                 Char('q') => return Err(error::Error::EarlyExit),
+                Char('e') => {
+                    let last = to_place[0];
+                    to_place.push(last);
+                    to_place.remove(0);
+                }
                 Char(' ') => {
                     if self.highlighted.contains(&self.cursor) {
-                        let piece =
-                            to_place.pop().expect("Unexpected end of placement list");
+                        let piece = to_place[0];
                         let tile = Tile::Piece(piece, player);
                         self.board.set_tile(self.cursor, tile);
                         self.highlighted.remove_item(&self.cursor);
+                        to_place.remove(0);
                     }
                 }
                 _ => {}
@@ -221,7 +224,14 @@ impl<R: Iterator<Item = Result<Key, io::Error>>, W: Write> Game<R, W> {
             // to_place.clear();
 
             self.refresh(player)?;
-            if to_place.is_empty() { break }
+            if to_place.is_empty() {
+                break
+            } else {
+                self.draw_status(
+                    format!("Next to place: {}", to_place[0])
+                )?;
+                self.stdout.flush()?;
+            }
         }
 
         Ok(())
@@ -231,7 +241,6 @@ impl<R: Iterator<Item = Result<Key, io::Error>>, W: Write> Game<R, W> {
         self.draw_board(player)?;
         self.highlight()?;
         self.draw_cursor(player)?;
-        self.draw_status()?;
         self.stdout.flush()?;
         Ok(())
     }
@@ -241,7 +250,15 @@ impl<R: Iterator<Item = Result<Key, io::Error>>, W: Write> Game<R, W> {
         ((c.x + 1) * 3 + tl.0, c.y + 2 + tl.1)
     }
 
-    fn draw_status(&mut self) -> error::Result<()> {
+    fn draw_status<D>(&mut self, status: D) -> error::Result<()>
+        where D: ::std::fmt::Display
+    {
+        let tl = self.top_left();
+        write!(self.stdout,
+               "{}{}",
+               cursor::Goto(tl.0 + 1, tl.1 + 1 + BOARD_HEIGHT),
+               status
+        )?;
         Ok(())
     }
 
