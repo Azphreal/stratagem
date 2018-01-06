@@ -1,5 +1,5 @@
 [package]
-name = "strategem"
+name = "stratagem"
 description = "Stratego, but in Rust"
 version = "0.1.0"
 authors = ["alex-smith <azphreal19@protonmail.com>"]
