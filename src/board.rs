@@ -64,9 +64,6 @@ impl Piece {
             // Exceptions for miners able to capture bombs, and spies able
             // to capture marshalls.
             Victory
-        } else if self.value() == 10 && other.value() == 1 {
-            // Lose if a marshall swings into a spy.
-            Loss
         } else {
             match self.cmp(&other) {
                 Less => Loss,
