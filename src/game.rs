@@ -76,7 +76,7 @@ impl<R: Iterator<Item = Result<Key, io::Error>>, W: Write> Game<R, W> {
                 Char('s') | Down  => self.cursor = mv!(0, 1),
                 Char('d') | Right => self.cursor = mv!(1, 0),
                 Char('q') => break,
-                Char(' ') => {
+                Char(' ') | Char('\n') => {
                     match self.sel {
                         Some(selected) => {
                             if self.highlighted.contains(&self.cursor) {
@@ -209,7 +209,7 @@ impl<R: Iterator<Item = Result<Key, io::Error>>, W: Write> Game<R, W> {
                     to_place.push(last);
                     to_place.remove(0);
                 }
-                Char(' ') => {
+                Char(' ') | Char('\n') => {
                     if self.highlighted.contains(&self.cursor) {
                         let piece = to_place[0];
                         let tile = Tile::Piece(piece, player);
