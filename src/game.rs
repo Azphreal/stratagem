@@ -10,18 +10,23 @@ const Y_OFFSET: u16 = 4;
 const SLEEP_DURATION: u32 = 500;
 
 struct Game<R, W: Write> {
-    board: Board,
-    cursor: Coord,
-    sel: Option<Coord>,
+    board:       Board,
+    cursor:      Coord,
+    sel:         Option<Coord>,
     highlighted: Vec<Coord>,
-    stdin: R,
-    stdout: W,
+    stdin:       R,
+    stdout:      W
 }
 
 impl<R, W: Write> Drop for Game<R, W> {
     fn drop(&mut self) {
-        write!(self.stdout, "{}{}{}",
-               clear::All, cursor::Show, cursor::Goto(1, 1)).unwrap()
+        write!(
+            self.stdout,
+            "{}{}{}",
+            clear::All,
+            cursor::Show,
+            cursor::Goto(1, 1)
+        ).unwrap()
     }
 }
 
@@ -29,12 +34,12 @@ pub fn init<R: Read, W: Write>(stdin: R, mut stdout: W) {
     write!(stdout, "{}", clear::All).unwrap();
 
     let mut game = Game {
-        board: Board::new(),
-        cursor: Coord {x: 0, y: 9},
-        sel: None,
+        board:       Board::new(),
+        cursor:      Coord { x: 0, y: 9 },
+        sel:         None,
         highlighted: vec![],
-        stdin: stdin.keys(),
-        stdout: stdout,
+        stdin:       stdin.keys(),
+        stdout:      stdout,
     };
 
     game.setup(board::Colour::Red);
@@ -45,7 +50,7 @@ pub fn init<R: Read, W: Write>(stdin: R, mut stdout: W) {
     game.run();
 }
 
-impl<R: Iterator<Item=Result<Key, ::std::io::Error>>, W: Write> Game<R, W> {
+impl<R: Iterator<Item = Result<Key, ::std::io::Error>>, W: Write> Game<R, W> {
 
     /// The main game loop.
     pub fn run(&mut self) {
@@ -80,7 +85,6 @@ impl<R: Iterator<Item=Result<Key, ::std::io::Error>>, W: Write> Game<R, W> {
                                     // then conduct the results.
                                     Tile::Piece(p_enemy, _) => {
                                         use board::BattleResult::*;
-                                        use ::std::thread;
 
                                         match self.board.tile_at(selected) {
                                             Tile::Piece(p_owned, _) =>
@@ -113,8 +117,10 @@ impl<R: Iterator<Item=Result<Key, ::std::io::Error>>, W: Write> Game<R, W> {
 
                                     // Else just move.
                                     _ => self.board
-                                        .apply_move(Move {from: selected,
-                                                          to: self.cursor}),
+                                        .apply_move(Move {
+                                            from: selected,
+                                            to: self.cursor
+                                        }),
                                 }
                             }
 
@@ -129,8 +135,8 @@ impl<R: Iterator<Item=Result<Key, ::std::io::Error>>, W: Write> Game<R, W> {
                             }
                             // Highlight valid spaces
                             let moves = self.board.find_moves(self.cursor);
-                            let coords = moves.iter()
-                                .map(|m| m.to).collect::<Vec<_>>();
+                            let coords =
+                                moves.iter().map(|m| m.to).collect::<Vec<_>>();
                             if coords.len() > 0 {
                                 self.highlighted = coords;
                                 self.sel = Some(self.cursor);
@@ -138,7 +144,7 @@ impl<R: Iterator<Item=Result<Key, ::std::io::Error>>, W: Write> Game<R, W> {
                         }
                     }
                 }
-                _ => {},
+                _ => ()
             }
 
             self.refresh(player);
@@ -151,16 +157,13 @@ impl<R: Iterator<Item=Result<Key, ::std::io::Error>>, W: Write> Game<R, W> {
     /// stationary pieces first (i.e., flag, bombs, marshall, general, ...).
     fn setup(&mut self, player: board::Colour) {
         use board::Piece::*;
-        let mut to_place = vec![Flag, Bomb, Bomb, Bomb, Bomb, Bomb, Bomb,
-                                Marshall, General, Colonel, Colonel,
-                                Major, Major, Major,
-                                Captain, Captain, Captain, Captain,
-                                Lieutenant, Lieutenant, Lieutenant, Lieutenant,
-                                Sergeant, Sergeant, Sergeant, Sergeant,
-                                Miner, Miner, Miner, Miner, Miner,
-                                Scout, Scout, Scout, Scout,
-                                Scout, Scout, Scout, Scout,
-                                Spy];
+        let mut to_place = vec![
+            Flag, Bomb, Bomb, Bomb, Bomb, Bomb, Bomb, Marshall, General,
+            Colonel, Colonel, Major, Major, Major, Captain, Captain, Captain,
+            Captain, Lieutenant, Lieutenant, Lieutenant, Lieutenant, Sergeant,
+            Sergeant, Sergeant, Sergeant, Miner, Miner, Miner, Miner, Miner,
+            Scout, Scout, Scout, Scout, Scout, Scout, Scout, Scout, Spy
+        ];
 
         macro_rules! mv {
             ($x:expr, $y:expr) => (match self.cursor.offset($x, $y) {
@@ -173,13 +176,13 @@ impl<R: Iterator<Item=Result<Key, ::std::io::Error>>, W: Write> Game<R, W> {
             use termion::event::Key::*;
 
             match k {
-                Char('w') | Up  => self.cursor = mv!(0, -1),
+                Char('w') | Up    => self.cursor = mv!(0, -1),
                 Char('a') | Left  => self.cursor = mv!(-1, 0),
                 Char('s') | Down  => self.cursor = mv!(0, 1),
                 Char('d') | Right => self.cursor = mv!(1, 0),
                 Char('q') => return,
                 Char(' ') => {}
-                _ => {},
+                _ => {}
             }
 
             to_place.clear();
@@ -202,26 +205,36 @@ impl<R: Iterator<Item=Result<Key, ::std::io::Error>>, W: Write> Game<R, W> {
     }
 
     fn draw_board(&mut self, player: board::Colour) -> ::std::io::Result<()> {
-        for (n, line) in self.board.display_to(player).unwrap().split('\n').enumerate() {
-            write!(self.stdout, "{}{}{}",
+        for (n, line) in self.board
+            .display_to(player)
+            .unwrap()
+            .split('\n')
+            .enumerate()
+        {
+            write!(self.stdout,
+                   "{}{}{}",
                    cursor::Goto(X_OFFSET, Y_OFFSET + n as u16),
                    cursor::Hide,
-                   line)?
+                   line
+            )?
         }
         Ok(())
     }
 
     fn draw_cursor(&mut self, player: board::Colour) -> ::std::io::Result<()> {
         let (x, y) = self.term_coords(self.cursor);
-        let cursor = format!("[{}]", self.board.tile_at(self.cursor).show(player));
+        let cursor =
+            format!("[{}]", self.board.tile_at(self.cursor).show(player));
 
         write!(self.stdout, "{}", cursor::Goto(x - 1, y))?;
         if self.highlighted.contains(&self.cursor) {
             use termion::color;
-            write!(self.stdout, "{}{}{}",
+            write!(self.stdout,
+                   "{}{}{}",
                    color::Bg(color::Red),
                    cursor,
-                   color::Bg(color::Reset))?;
+                   color::Bg(color::Reset)
+            )?;
         } else {
             write!(self.stdout, "{}", cursor)?;
         };
@@ -236,7 +249,9 @@ impl<R: Iterator<Item=Result<Key, ::std::io::Error>>, W: Write> Game<R, W> {
             let (x, y) = self.term_coords(t.clone());
             write!(self.stdout, "{}{}   {}",
                    cursor::Goto(x - 1, y),
-                   color::Bg(color::Red), color::Bg(color::Reset))?;
+                   color::Bg(color::Red),
+                   color::Bg(color::Reset)
+            )?;
         }
 
         Ok(())
@@ -245,12 +260,11 @@ impl<R: Iterator<Item=Result<Key, ::std::io::Error>>, W: Write> Game<R, W> {
     pub fn reveal(&mut self, c: Coord, player: board::Colour) {
         match self.board.tile_at(c) {
             board::Tile::Piece(p, col) => {
-                use ::std::thread;
                 use board::Tile;
 
                 self.board.set_tile(c, Tile::Piece(p, col.other()));
                 self.refresh(player);
-                thread::sleep_ms(SLEEP_DURATION);
+                std::thread::sleep_ms(SLEEP_DURATION);
 
                 self.board.set_tile(c, Tile::Piece(p, col));
                 self.refresh(player);
@@ -258,5 +272,4 @@ impl<R: Iterator<Item=Result<Key, ::std::io::Error>>, W: Write> Game<R, W> {
             _ => (),
         }
     }
-
 }

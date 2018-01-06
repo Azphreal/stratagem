@@ -1,6 +1,6 @@
 const DEFAULT_NO_MANS_LAND: [Tile; 10] =
-    [Tile::Empty, Tile::Empty, Tile::Terrain, Tile::Terrain, Tile::Empty,
-     Tile::Empty, Tile::Terrain, Tile::Terrain, Tile::Empty, Tile::Empty];
+    [Tile::Empty, Tile::Empty,   Tile::Terrain, Tile::Terrain, Tile::Empty,
+     Tile::Empty, Tile::Terrain, Tile::Terrain, Tile::Empty,   Tile::Empty];
 
 const TERRAIN_DISP_CHAR: &'static str = "~";
 const HIDDEN_DISP_CHAR: &'static str = "▇";
@@ -36,7 +36,7 @@ impl Piece {
             "scout"      | "9"       => Some(Piece::Scout),
             "spy"        | "s" | "S" => Some(Piece::Spy),
             "flag"       | "f" | "F" => Some(Piece::Flag),
-            _                  => None,
+            _                        => None,
         }
     }
     fn value(&self) -> u8 {
@@ -57,8 +57,8 @@ impl Piece {
         }
     }
     pub fn attack(&self, other: Piece) -> BattleResult {
-        use ::std::cmp::Ordering::*;
         use self::BattleResult::*;
+        use std::cmp::Ordering::*;
         if (self.value() == 3 && other.value() == ::std::u8::MAX)
             || (self.value() == 1 && other.value() == 10)
         {
@@ -118,7 +118,10 @@ pub enum BattleResult {
 }
 
 #[derive(Copy, Clone, PartialEq, Debug)]
-pub enum Colour{Red, Blue}
+pub enum Colour{
+    Red,
+    Blue
+}
 
 impl Colour {
     pub fn other(&self) -> Self {
@@ -178,7 +181,7 @@ impl Coord {
             if x < 'a' || x > 'j' || y < '0' || y > '9' {
                 None
             } else {
-                Some(Coord{
+                Some(Coord {
                     x: x.to_digit(20).unwrap() as u16 - 10,
                     y: y.to_digit(10).unwrap() as u16,
                 })
@@ -203,9 +206,7 @@ pub struct Move {
 }
 
 impl Move {
-    pub fn new(f: Coord, t: Coord) -> Self {
-        Move {from: f, to: t}
-    }
+    pub fn new(f: Coord, t: Coord) -> Self {Move {from: f, to: t}}
 }
 
 #[derive(Debug)]
@@ -229,7 +230,8 @@ impl Board {
                 [Tile::Empty; 10],
                 [Tile::Empty; 10],
             ],
-        moves: vec![]}
+            moves: vec![]
+        }
     }
 
     pub fn tile_at(&self, c: Coord) -> Tile {
@@ -278,28 +280,31 @@ impl Board {
                         => return mvs,
                     Piece::Scout => {
                         // Iterate through the neighbours.
-                        for &(x, y) in [(1, 0), (-1, 0), (0, 1), (0, -1)].iter() {
+                        for &(x, y) in [(1, 0), (-1, 0), (0, 1), (0, -1)].iter()
+                        {
                             if let Some(next_c) = c.offset(x, y) {
                                 match self.tile_at(next_c) {
                                     Tile::Piece(_, next_col) => {
                                         if curr_col != next_col {
                                             mvs.push(Move::new(c, next_c));
                                         }
-                                    },
+                                    }
                                     // Go as far as possible.
                                     Tile::Empty => {
                                         mvs.push(Move::new(c, next_c));
                                         let mut mult = 2;
-                                        'EXT: while let Some(next_c) = c.offset(x * mult, y * mult) {
+                                        'EXT: while let Some(next_c) =
+                                            c.offset(x * mult, y * mult)
+                                        {
                                             match self.tile_at(next_c) {
                                                 Tile::Piece(_, next_col) => {
                                                     if curr_col != next_col {
                                                         mvs.push(Move::new(c, next_c));
                                                     }
                                                     break 'EXT
-                                                },
+                                                }
                                                 Tile::Empty => mvs.push(Move::new(c, next_c)),
-                                                Tile::Terrain => break 'EXT
+                                                Tile::Terrain => break 'EXT,
                                             }
                                             mult += 1;
                                         }
@@ -312,14 +317,15 @@ impl Board {
                     }
                     _ => {
                         // Iterate through the neighbours.
-                        for &(x, y) in [(1, 0), (-1, 0), (0, 1), (0, -1)].iter() {
+                        for &(x, y) in [(1, 0), (-1, 0), (0, 1), (0, -1)].iter()
+                        {
                             if let Some(next_c) = c.offset(x, y) {
                                 match self.tile_at(next_c) {
                                     Tile::Piece(_, next_col) => {
                                         if curr_col != next_col {
                                             mvs.push(Move::new(c, next_c));
                                         }
-                                    },
+                                    }
                                     Tile::Empty => mvs.push(Move::new(c, next_c)),
                                     _ => (),
                                 }
@@ -329,7 +335,7 @@ impl Board {
                     }
                 }
             }
-            _ => return mvs
+            _ => return mvs,
         }
     }
 
@@ -337,8 +343,11 @@ impl Board {
     ///
     /// Will blank out pieces that the player provided doesn't own, as it is
     /// considered personal knowledge.
-    pub fn display_to(&self, player: Colour) -> Result<String, ::std::fmt::Error> {
-        use ::std::fmt::Write;
+    pub fn display_to(
+        &self,
+        player: Colour
+    ) -> Result<String, ::std::fmt::Error> {
+        use std::fmt::Write;
 
         let mut s = String::new();
         write!(s, "┌──────────────────────────────┐\n")?;
@@ -358,8 +367,8 @@ impl Board {
     /// Randomises the placement of the starting pieces on the given side (where
     /// blue is the top half, and red is the bottom half)
     pub fn randomise(&mut self, player: Colour) {
-        use rand::Rng;
         use self::Piece::*;
+        use rand::Rng;
 
         let mut rng = ::rand::thread_rng();
         // FIXME Make this less obvious?
@@ -384,11 +393,11 @@ impl Board {
             Colour::Blue => 0,
         };
 
-        for x in 0..10 {
-            for y in 0..4 {
+        for x in 0 .. 10 {
+            for y in 0 .. 4 {
                 let coord = Coord {x: x, y: y + offset};
-                let piece = to_place.pop()
-                    .expect("Unexpected end of placement list");
+                let piece =
+                    to_place.pop().expect("Unexpected end of placement list");
                 let tile = Tile::Piece(piece, player);
                 self.set_tile(coord, tile);
             }
@@ -400,16 +409,12 @@ impl<'a> ::std::iter::IntoIterator for &'a Board {
     type Item = &'a [Tile; 10];
     type IntoIter = ::std::slice::Iter<'a, [Tile; 10]>;
 
-    fn into_iter(self) -> Self::IntoIter {
-        self.board.iter()
-    }
+    fn into_iter(self) -> Self::IntoIter {self.board.iter()}
 }
 
 fn create_side(colour: Colour) -> [[Tile; 10]; 4] {
     match colour {
-        Colour::Red => {
-            unimplemented!()
-        },
+        Colour::Red => unimplemented!(),
         // Default board
         Colour::Blue => DEFAULT_BLUE_SIDE,
     }
