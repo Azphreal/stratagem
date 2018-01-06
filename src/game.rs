@@ -44,7 +44,7 @@ pub fn init<R: Read, W: Write>(stdin: R, mut stdout: W) -> io::Result<()> {
 
     game.setup(board::Colour::Red)?;
     game.board.randomise(board::Colour::Blue);
-    game.board.randomise(board::Colour::Red);
+    // game.board.randomise(board::Colour::Red);
     game.refresh(board::Colour::Red)?;
 
     game.run()
@@ -132,6 +132,7 @@ impl<R: Iterator<Item = Result<Key, io::Error>>, W: Write> Game<R, W> {
                                     continue
                                 }
                             }
+
                             // Highlight valid spaces
                             let moves = self.board.find_moves(self.cursor);
                             let coords =
@@ -165,6 +166,7 @@ impl<R: Iterator<Item = Result<Key, io::Error>>, W: Write> Game<R, W> {
             Sergeant, Sergeant, Sergeant, Miner, Miner, Miner, Miner, Miner,
             Scout, Scout, Scout, Scout, Scout, Scout, Scout, Scout, Spy
         ];
+        to_place.reverse();
 
         macro_rules! mv {
             ($x:expr, $y:expr) => (match self.cursor.offset($x, $y) {
@@ -172,6 +174,24 @@ impl<R: Iterator<Item = Result<Key, io::Error>>, W: Write> Game<R, W> {
                 None => self.cursor
             });
         }
+
+        let offset = match player {
+            board::Colour::Red => 6,
+            board::Colour::Blue => 0,
+        };
+
+        for x in 0 .. 10 {
+            for y in 0 .. 4 {
+                let coord = Coord {x: x, y: y + offset};
+                self.highlighted.push(coord);
+                // let piece =
+                //     to_place.pop().expect("Unexpected end of placement list");
+                // let tile = Tile::Piece(piece, player);
+                // self.set_tile(coord, tile);
+            }
+        }
+
+        self.refresh(player)?;
 
         while let Ok(k) = self.stdin.next().unwrap() {
             use termion::event::Key::*;
@@ -182,11 +202,19 @@ impl<R: Iterator<Item = Result<Key, io::Error>>, W: Write> Game<R, W> {
                 Char('s') | Down  => self.cursor = mv!(0, 1),
                 Char('d') | Right => self.cursor = mv!(1, 0),
                 Char('q') => break,
-                Char(' ') => {}
+                Char(' ') => {
+                    if self.highlighted.contains(&self.cursor) {
+                        let piece =
+                            to_place.pop().expect("Unexpected end of placement list");
+                        let tile = Tile::Piece(piece, player);
+                        self.board.set_tile(self.cursor, tile);
+                        self.highlighted.remove_item(&self.cursor);
+                    }
+                }
                 _ => {}
             }
 
-            to_place.clear();
+            // to_place.clear();
 
             self.refresh(player)?;
             if to_place.is_empty() { break }

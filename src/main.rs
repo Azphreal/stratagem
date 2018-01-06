@@ -1,3 +1,4 @@
+#![feature(vec_remove_item)]
 extern crate rand;
 extern crate termion;
 
