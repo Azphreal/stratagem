@@ -7,8 +7,8 @@ use termion::input::TermRead;
 use board::{self, Board, Coord, Move, Tile};
 use error;
 
-const X_OFFSET: u16 = 4;
-const Y_OFFSET: u16 = 4;
+const BOARD_WIDTH: u16 = 32;
+const BOARD_HEIGHT: u16 = 12;
 const SLEEP_DURATION: u64 = 500;
 
 struct Game<R, W: Write> {
@@ -16,6 +16,7 @@ struct Game<R, W: Write> {
     cursor:      Coord,
     sel:         Option<Coord>,
     highlighted: Vec<Coord>,
+    size:        (u16, u16),
     stdin:       R,
     stdout:      W
 }
@@ -32,7 +33,7 @@ impl<R, W: Write> Drop for Game<R, W> {
     }
 }
 
-pub fn init<R: Read, W: Write>(stdin: R, mut stdout: W) -> error::Result<()> {
+pub fn init<R: Read, W: Write>(stdin: R, mut stdout: W, size: (u16, u16)) -> error::Result<()> {
     write!(stdout, "{}", clear::All)?;
 
     let mut game = Game {
@@ -40,6 +41,7 @@ pub fn init<R: Read, W: Write>(stdin: R, mut stdout: W) -> error::Result<()> {
         cursor:      Coord { x: 0, y: 9 },
         sel:         None,
         highlighted: vec![],
+        size:        size,
         stdin:       stdin.keys(),
         stdout:      stdout,
     };
@@ -235,14 +237,21 @@ impl<R: Iterator<Item = Result<Key, io::Error>>, W: Write> Game<R, W> {
     }
 
     fn term_coords(&self, c: Coord) -> (u16, u16) {
-        (c.x * 3 + 2 + X_OFFSET, c.y + 1 + Y_OFFSET)
+        let tl = self.top_left();
+        ((c.x + 1) * 3 + tl.0, c.y + 2 + tl.1)
     }
 
     fn draw_status(&mut self) -> error::Result<()> {
         Ok(())
     }
 
+    fn top_left(&self) -> (u16, u16) {
+        ((self.size.0 - BOARD_WIDTH) / 2, (self.size.1 - BOARD_HEIGHT) / 2)
+    }
+
     fn draw_board(&mut self, player: board::Colour) -> error::Result<()> {
+        let tl = self.top_left();
+
         for (n, line) in self.board
             .display_to(player)
             .unwrap()
@@ -251,8 +260,9 @@ impl<R: Iterator<Item = Result<Key, io::Error>>, W: Write> Game<R, W> {
         {
             write!(self.stdout,
                    "{}{}{}",
-                   cursor::Goto(X_OFFSET, Y_OFFSET + n as u16),
+                   cursor::Goto(1 + tl.0, 1 + tl.1 + n as u16),
                    cursor::Hide,
+                   // self.size,
                    line
             )?
         }
@@ -302,6 +312,10 @@ impl<R: Iterator<Item = Result<Key, io::Error>>, W: Write> Game<R, W> {
             self.refresh(player)?;
         }
 
+        Ok(())
+    }
+
+    fn popup(&mut self, text: &str) -> error::Result<()> {
         Ok(())
     }
 }
