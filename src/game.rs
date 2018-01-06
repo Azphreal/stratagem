@@ -124,11 +124,11 @@ impl<R: Iterator<Item = Result<Key, io::Error>>, W: Write> Game<R, W> {
                                             to: self.cursor
                                         }),
                                 }
+                                player = player.other();
                             }
 
                             self.sel = None;
                             self.highlighted.clear();
-                            player = player.other();
                         }
                         None => {
                             if let Tile::Piece(_, col) = self.board.tile_at(self.cursor) {
@@ -220,8 +220,6 @@ impl<R: Iterator<Item = Result<Key, io::Error>>, W: Write> Game<R, W> {
                 }
                 _ => {}
             }
-
-            // to_place.clear();
 
             self.refresh(player)?;
             if to_place.is_empty() {
