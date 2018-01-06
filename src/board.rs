@@ -2,8 +2,8 @@ const DEFAULT_NO_MANS_LAND: [Tile; 10] =
     [Tile::Empty, Tile::Empty,   Tile::Terrain, Tile::Terrain, Tile::Empty,
      Tile::Empty, Tile::Terrain, Tile::Terrain, Tile::Empty,   Tile::Empty];
 
-const TERRAIN_DISP_CHAR: &'static str = "~";
-const HIDDEN_DISP_CHAR: &'static str = "▇";
+const TERRAIN_DISP_CHAR: &str = "~";
+const HIDDEN_DISP_CHAR: &str = "▇";
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub enum Piece {
@@ -143,7 +143,7 @@ impl Tile {
     pub fn show(&self, viewer: Colour) -> String {
         match *self {
             Tile::Terrain     => format!("{}", TERRAIN_DISP_CHAR),
-            Tile::Empty       => format!(" "),
+            Tile::Empty       => " ".to_string(),
             Tile::Piece(p, c) => if viewer == c {
                 format!("{}", p)
             } else {
@@ -276,10 +276,10 @@ impl Board {
             Tile::Piece(curr_piece, curr_col) => {
                 match curr_piece {
                     Piece::Bomb | Piece::Flag
-                        => return mvs,
+                        => mvs,
                     Piece::Scout => {
                         // Iterate through the neighbours.
-                        for &(x, y) in [(1, 0), (-1, 0), (0, 1), (0, -1)].iter()
+                        for &(x, y) in &[(1, 0), (-1, 0), (0, 1), (0, -1)]
                         {
                             if let Some(next_c) = c.offset(x, y) {
                                 match self.tile_at(next_c) {
@@ -312,11 +312,11 @@ impl Board {
                                 }
                             }
                         }
-                        return mvs
+                        mvs
                     }
                     _ => {
                         // Iterate through the neighbours.
-                        for &(x, y) in [(1, 0), (-1, 0), (0, 1), (0, -1)].iter()
+                        for &(x, y) in &[(1, 0), (-1, 0), (0, 1), (0, -1)]
                         {
                             if let Some(next_c) = c.offset(x, y) {
                                 match self.tile_at(next_c) {
@@ -330,11 +330,11 @@ impl Board {
                                 }
                             }
                         }
-                        return mvs
+                        mvs
                     }
                 }
             }
-            _ => return mvs,
+            _ => mvs,
         }
     }
 
@@ -350,7 +350,7 @@ impl Board {
 
         let mut s = String::new();
         write!(s, "┌──────────────────────────────┐\n")?;
-        for line in self.board.into_iter() {
+        for line in &self.board {
             write!(s, "│")?;
             for tile in line.iter() {
                 write!(s, " {} ", tile.show(player))?;

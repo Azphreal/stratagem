@@ -54,7 +54,6 @@ impl<R: Iterator<Item = Result<Key, io::Error>>, W: Write> Game<R, W> {
 
     /// The main game loop.
     pub fn run(&mut self) -> io::Result<()> {
-        use board::Piece::*;
         let mut player = board::Colour::Red;
 
         macro_rules! mv {
@@ -85,32 +84,32 @@ impl<R: Iterator<Item = Result<Key, io::Error>>, W: Write> Game<R, W> {
                                     Tile::Piece(p_enemy, _) => {
                                         use board::BattleResult::*;
 
-                                        match self.board.tile_at(selected) {
-                                            Tile::Piece(p_owned, _) =>
-                                                match p_owned.attack(p_enemy) {
-                                                    // FIXME Probably some way
-                                                    // of doing this without
-                                                    // reallocation, even if
-                                                    // it's just making `reveal`
-                                                    // take a mutable.
-                                                    Victory => {
-                                                        let cur = self.cursor;
-                                                        self.reveal(cur, player)?;
-                                                        self.board.apply_move(Move::new(selected, self.cursor));
-                                                    },
-                                                    Loss => {
-                                                        let cur = self.cursor;
-                                                        self.reveal(cur, player)?;
-                                                        self.board.set_tile(selected, Tile::Empty);
-                                                    }
-                                                    Draw => {
-                                                        let cur = self.cursor;
-                                                        self.reveal(cur, player)?;
-                                                        self.board.set_tile(selected, Tile::Empty);
-                                                        self.board.set_tile(self.cursor, Tile::Empty);
-                                                    }
+                                        if let Tile::Piece(p_owned, _) =
+                                            self.board.tile_at(selected)
+                                        {
+                                            match p_owned.attack(p_enemy) {
+                                                // FIXME Probably some way
+                                                // of doing this without
+                                                // reallocation, even if
+                                                // it's just making `reveal`
+                                                // take a mutable.
+                                                Victory => {
+                                                    let cur = self.cursor;
+                                                    self.reveal(cur, player)?;
+                                                    self.board.apply_move(Move::new(selected, self.cursor));
+                                                },
+                                                Loss => {
+                                                    let cur = self.cursor;
+                                                    self.reveal(cur, player)?;
+                                                    self.board.set_tile(selected, Tile::Empty);
                                                 }
-                                            _ => (),
+                                                Draw => {
+                                                    let cur = self.cursor;
+                                                    self.reveal(cur, player)?;
+                                                    self.board.set_tile(selected, Tile::Empty);
+                                                    self.board.set_tile(self.cursor, Tile::Empty);
+                                                }
+                                            }
                                         }
                                     }
 
@@ -128,15 +127,16 @@ impl<R: Iterator<Item = Result<Key, io::Error>>, W: Write> Game<R, W> {
                             player = player.other();
                         }
                         None => {
-                            match self.board.tile_at(self.cursor) {
-                                Tile::Piece(_, col) => if player != col { continue },
-                                _ => (),
+                            if let Tile::Piece(_, col) = self.board.tile_at(self.cursor) {
+                                if player != col {
+                                    continue
+                                }
                             }
                             // Highlight valid spaces
                             let moves = self.board.find_moves(self.cursor);
                             let coords =
                                 moves.iter().map(|m| m.to).collect::<Vec<_>>();
-                            if coords.len() > 0 {
+                            if !coords.is_empty() {
                                 self.highlighted = coords;
                                 self.sel = Some(self.cursor);
                             }
@@ -248,7 +248,7 @@ impl<R: Iterator<Item = Result<Key, io::Error>>, W: Write> Game<R, W> {
     fn highlight(&mut self) -> io::Result<()> {
         use termion::color;
 
-        for t in self.highlighted.iter() {
+        for t in &self.highlighted {
             let (x, y) = self.term_coords(t.clone());
             write!(self.stdout, "{}{}   {}",
                    cursor::Goto(x - 1, y),
@@ -261,16 +261,13 @@ impl<R: Iterator<Item = Result<Key, io::Error>>, W: Write> Game<R, W> {
     }
 
     pub fn reveal(&mut self, c: Coord, player: board::Colour) -> io::Result<()> {
-        match self.board.tile_at(c) {
-            Tile::Piece(p, col) => {
-                self.board.set_tile(c, Tile::Piece(p, col.other()));
-                self.refresh(player)?;
-                ::std::thread::sleep(::std::time::Duration::from_millis(SLEEP_DURATION));
+        if let Tile::Piece(p, col) = self.board.tile_at(c) {
+            self.board.set_tile(c, Tile::Piece(p, col.other()));
+            self.refresh(player)?;
+            ::std::thread::sleep(::std::time::Duration::from_millis(SLEEP_DURATION));
 
-                self.board.set_tile(c, Tile::Piece(p, col));
-                self.refresh(player)?;
-            }
-            _ => (),
+            self.board.set_tile(c, Tile::Piece(p, col));
+            self.refresh(player)?;
         }
 
         Ok(())
