@@ -5,7 +5,7 @@ mod board;
 mod tests;
 mod game;
 
-use std::io;
+use std::io::{self, Write};
 use termion::raw::IntoRawMode;
 
 fn main() {
@@ -17,5 +17,8 @@ fn main() {
     let mut stderr = stderr.lock();
 
     let stdout = stdout.into_raw_mode().unwrap();
-    game::init(stdin, stdout);
+    match game::init(stdin, stdout) {
+        Err(e) => println!("Fatal error: {}", e),
+        Ok(()) => ()
+    }
 }

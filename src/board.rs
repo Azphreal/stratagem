@@ -40,20 +40,19 @@ impl Piece {
         }
     }
     fn value(&self) -> u8 {
-        use self::Piece::*;
         match *self {
-            Bomb       => ::std::u8::MAX,
-            Marshall   => 10,
-            General    => 9,
-            Colonel    => 8,
-            Major      => 7,
-            Captain    => 6,
-            Lieutenant => 5,
-            Sergeant   => 4,
-            Miner      => 3,
-            Scout      => 2,
-            Spy        => 1,
-            Flag       => 0,
+            Piece::Bomb       => ::std::u8::MAX,
+            Piece::Marshall   => 10,
+            Piece::General    => 9,
+            Piece::Colonel    => 8,
+            Piece::Major      => 7,
+            Piece::Captain    => 6,
+            Piece::Lieutenant => 5,
+            Piece::Sergeant   => 4,
+            Piece::Miner      => 3,
+            Piece::Scout      => 2,
+            Piece::Spy        => 1,
+            Piece::Flag       => 0,
         }
     }
     pub fn attack(&self, other: Piece) -> BattleResult {
@@ -354,7 +353,7 @@ impl Board {
         for line in self.board.into_iter() {
             write!(s, "│")?;
             for tile in line.iter() {
-                write!(s, " {} ", tile.show(player));
+                write!(s, " {} ", tile.show(player))?;
             }
             write!(s, "│\n")?;
         }
@@ -372,16 +371,13 @@ impl Board {
 
         let mut rng = ::rand::thread_rng();
         // FIXME Make this less obvious?
-        let mut to_place = vec![Bomb, Bomb, Bomb, Bomb, Bomb, Bomb,
-                                Marshall, General, Colonel, Colonel,
-                                Major, Major, Major,
-                                Captain, Captain, Captain, Captain,
-                                Lieutenant, Lieutenant, Lieutenant, Lieutenant,
-                                Sergeant, Sergeant, Sergeant, Sergeant,
-                                Miner, Miner, Miner, Miner, Miner,
-                                Scout, Scout, Scout, Scout,
-                                Scout, Scout, Scout, Scout,
-                                Spy, Flag];
+        let mut to_place = vec![
+            Bomb, Bomb, Bomb, Bomb, Bomb, Bomb, Marshall, General, Colonel,
+            Colonel, Major, Major, Major, Captain, Captain, Captain, Captain,
+            Lieutenant, Lieutenant, Lieutenant, Lieutenant, Sergeant, Sergeant,
+            Sergeant, Sergeant, Miner, Miner, Miner, Miner, Miner, Scout, Scout,
+            Scout, Scout, Scout, Scout, Scout, Scout, Spy, Flag
+        ];
 
         {
             let mut sl = to_place.as_mut_slice();

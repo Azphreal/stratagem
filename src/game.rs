@@ -1,13 +1,13 @@
 use std::io::{self, Read, Write};
-use termion::{clear, cursor, style};
+use termion::{clear, cursor};
 use termion::event::Key;
 use termion::input::TermRead;
 
-use board::{self, Board, Coord, Move};
+use board::{self, Board, Coord, Move, Tile};
 
 const X_OFFSET: u16 = 4;
 const Y_OFFSET: u16 = 4;
-const SLEEP_DURATION: u32 = 500;
+const SLEEP_DURATION: u64 = 500;
 
 struct Game<R, W: Write> {
     board:       Board,
@@ -30,8 +30,8 @@ impl<R, W: Write> Drop for Game<R, W> {
     }
 }
 
-pub fn init<R: Read, W: Write>(stdin: R, mut stdout: W) {
-    write!(stdout, "{}", clear::All).unwrap();
+pub fn init<R: Read, W: Write>(stdin: R, mut stdout: W) -> io::Result<()> {
+    write!(stdout, "{}", clear::All)?;
 
     let mut game = Game {
         board:       Board::new(),
@@ -42,18 +42,18 @@ pub fn init<R: Read, W: Write>(stdin: R, mut stdout: W) {
         stdout:      stdout,
     };
 
-    game.setup(board::Colour::Red);
+    game.setup(board::Colour::Red)?;
     game.board.randomise(board::Colour::Blue);
     game.board.randomise(board::Colour::Red);
-    game.refresh(board::Colour::Red);
+    game.refresh(board::Colour::Red)?;
 
-    game.run();
+    game.run()
 }
 
-impl<R: Iterator<Item = Result<Key, ::std::io::Error>>, W: Write> Game<R, W> {
+impl<R: Iterator<Item = Result<Key, io::Error>>, W: Write> Game<R, W> {
 
     /// The main game loop.
-    pub fn run(&mut self) {
+    pub fn run(&mut self) -> io::Result<()> {
         use board::Piece::*;
         let mut player = board::Colour::Red;
 
@@ -72,12 +72,11 @@ impl<R: Iterator<Item = Result<Key, ::std::io::Error>>, W: Write> Game<R, W> {
                 Char('a') | Left  => self.cursor = mv!(-1, 0),
                 Char('s') | Down  => self.cursor = mv!(0, 1),
                 Char('d') | Right => self.cursor = mv!(1, 0),
-                Char('q') => return,
+                Char('q') => break,
                 Char(' ') => {
                     match self.sel {
                         Some(selected) => {
                             if self.highlighted.contains(&self.cursor) {
-                                use board::Tile;
 
                                 // Conduct the move.
                                 match self.board.tile_at(self.cursor) {
@@ -96,17 +95,17 @@ impl<R: Iterator<Item = Result<Key, ::std::io::Error>>, W: Write> Game<R, W> {
                                                     // take a mutable.
                                                     Victory => {
                                                         let cur = self.cursor;
-                                                        self.reveal(cur, player);
+                                                        self.reveal(cur, player)?;
                                                         self.board.apply_move(Move::new(selected, self.cursor));
                                                     },
                                                     Loss => {
                                                         let cur = self.cursor;
-                                                        self.reveal(cur, player);
+                                                        self.reveal(cur, player)?;
                                                         self.board.set_tile(selected, Tile::Empty);
                                                     }
                                                     Draw => {
                                                         let cur = self.cursor;
-                                                        self.reveal(cur, player);
+                                                        self.reveal(cur, player)?;
                                                         self.board.set_tile(selected, Tile::Empty);
                                                         self.board.set_tile(self.cursor, Tile::Empty);
                                                     }
@@ -130,7 +129,7 @@ impl<R: Iterator<Item = Result<Key, ::std::io::Error>>, W: Write> Game<R, W> {
                         }
                         None => {
                             match self.board.tile_at(self.cursor) {
-                                board::Tile::Piece(_, col) => if player != col { continue },
+                                Tile::Piece(_, col) => if player != col { continue },
                                 _ => (),
                             }
                             // Highlight valid spaces
@@ -147,15 +146,17 @@ impl<R: Iterator<Item = Result<Key, ::std::io::Error>>, W: Write> Game<R, W> {
                 _ => ()
             }
 
-            self.refresh(player);
+            self.refresh(player)?;
         }
+
+        Ok(())
     }
 
     /// Prompts the user to set up their side of the board.
     ///
     /// By default, places pieces in order valued highest to lowest, with
     /// stationary pieces first (i.e., flag, bombs, marshall, general, ...).
-    fn setup(&mut self, player: board::Colour) {
+    fn setup(&mut self, player: board::Colour) -> io::Result<()> {
         use board::Piece::*;
         let mut to_place = vec![
             Flag, Bomb, Bomb, Bomb, Bomb, Bomb, Bomb, Marshall, General,
@@ -180,19 +181,21 @@ impl<R: Iterator<Item = Result<Key, ::std::io::Error>>, W: Write> Game<R, W> {
                 Char('a') | Left  => self.cursor = mv!(-1, 0),
                 Char('s') | Down  => self.cursor = mv!(0, 1),
                 Char('d') | Right => self.cursor = mv!(1, 0),
-                Char('q') => return,
+                Char('q') => break,
                 Char(' ') => {}
                 _ => {}
             }
 
             to_place.clear();
 
-            self.refresh(player);
-            if to_place.is_empty() { return }
+            self.refresh(player)?;
+            if to_place.is_empty() { break }
         }
+
+        Ok(())
     }
 
-    fn refresh(&mut self, player: board::Colour) -> ::std::io::Result<()> {
+    fn refresh(&mut self, player: board::Colour) -> io::Result<()> {
         self.draw_board(player)?;
         self.highlight()?;
         self.draw_cursor(player)?;
@@ -204,7 +207,7 @@ impl<R: Iterator<Item = Result<Key, ::std::io::Error>>, W: Write> Game<R, W> {
         (c.x * 3 + 2 + X_OFFSET, c.y + 1 + Y_OFFSET)
     }
 
-    fn draw_board(&mut self, player: board::Colour) -> ::std::io::Result<()> {
+    fn draw_board(&mut self, player: board::Colour) -> io::Result<()> {
         for (n, line) in self.board
             .display_to(player)
             .unwrap()
@@ -221,7 +224,7 @@ impl<R: Iterator<Item = Result<Key, ::std::io::Error>>, W: Write> Game<R, W> {
         Ok(())
     }
 
-    fn draw_cursor(&mut self, player: board::Colour) -> ::std::io::Result<()> {
+    fn draw_cursor(&mut self, player: board::Colour) -> io::Result<()> {
         let (x, y) = self.term_coords(self.cursor);
         let cursor =
             format!("[{}]", self.board.tile_at(self.cursor).show(player));
@@ -242,7 +245,7 @@ impl<R: Iterator<Item = Result<Key, ::std::io::Error>>, W: Write> Game<R, W> {
         Ok(())
     }
 
-    fn highlight(&mut self) -> ::std::io::Result<()> {
+    fn highlight(&mut self) -> io::Result<()> {
         use termion::color;
 
         for t in self.highlighted.iter() {
@@ -257,19 +260,19 @@ impl<R: Iterator<Item = Result<Key, ::std::io::Error>>, W: Write> Game<R, W> {
         Ok(())
     }
 
-    pub fn reveal(&mut self, c: Coord, player: board::Colour) {
+    pub fn reveal(&mut self, c: Coord, player: board::Colour) -> io::Result<()> {
         match self.board.tile_at(c) {
-            board::Tile::Piece(p, col) => {
-                use board::Tile;
-
+            Tile::Piece(p, col) => {
                 self.board.set_tile(c, Tile::Piece(p, col.other()));
-                self.refresh(player);
-                std::thread::sleep_ms(SLEEP_DURATION);
+                self.refresh(player)?;
+                ::std::thread::sleep(::std::time::Duration::from_millis(SLEEP_DURATION));
 
                 self.board.set_tile(c, Tile::Piece(p, col));
-                self.refresh(player);
+                self.refresh(player)?;
             }
             _ => (),
         }
+
+        Ok(())
     }
 }
