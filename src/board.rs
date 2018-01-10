@@ -203,6 +203,7 @@ pub struct Move {
 
 impl Move {
     pub fn new(f: Coord, t: Coord) -> Self {Move {from: f, to: t}}
+    pub fn reverse(&self) -> Self {Move {from: self.to, to: self.from}}
 }
 
 #[derive(Debug)]

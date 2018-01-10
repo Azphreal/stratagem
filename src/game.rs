@@ -11,6 +11,13 @@ const BOARD_WIDTH: u16 = 32;
 const BOARD_HEIGHT: u16 = 12;
 const SLEEP_DURATION: u64 = 500;
 
+enum GameResult {
+    RedWin,
+    RedLoss,
+    Draw,
+    Ongoing
+}
+
 struct Game<R, W: Write> {
     board:       Board,
     cursor:      Coord,
@@ -332,5 +339,37 @@ impl<R: Iterator<Item = Result<Key, io::Error>>, W: Write> Game<R, W> {
 
     fn popup(&mut self, text: &str) -> error::Result<()> {
         Ok(())
+    }
+
+    fn check_game_end(&mut self) -> GameResult {
+        let mut red = vec![];
+        let mut blue = vec![];
+
+        for line in &self.board {
+            for tile in line {
+                if let &Tile::Piece(piece, col) = tile {
+                    match col {
+                        board::Colour::Red => red.push(piece),
+                        board::Colour::Blue => blue.push(piece),
+                    }
+                }
+            }
+        }
+
+        // Flags
+        if !red.contains(&board::Piece::Flag) {
+            return GameResult::RedLoss
+        } else if !blue.contains(&board::Piece::Flag) {
+            return GameResult::RedWin
+        }
+
+        // Only immobile units
+        if red.iter().fold(true, |acc, &p| acc && (p == board::Piece::Flag || p == board::Piece::Bomb)) {
+            return GameResult::RedLoss
+        } else if blue.iter().fold(true, |acc, &p| acc && (p == board::Piece::Flag || p == board::Piece::Bomb)) {
+            return GameResult::RedWin
+        }
+
+        GameResult::Ongoing
     }
 }
